@@ -12,35 +12,45 @@ try:
 except ImportError:
     pass
 
-from report_generator.pdf_saver import Markdown2Pdf
-from email_sender.email_sender import EmailSender
 
+class DummyPdfSaver:
+    def generate_pdf(self, *args, **kwargs):
+        print("WARNING: dummy pdf saver called")
+
+class DummyEmailSender:
+    def send_email(self, email_receiver, subject_name, pdf_path):
+        print(f"WARNING: dummy email sender called for {email_receiver} {subject_name}")
 
 class MainDisplayer:
 
-    def __init__(self, streamlit_wrapper=None, save_to_pdf=True, email_receiver=None,
-                 subject_name=None, pdf_saver_class=None, download_class=None):
+    def __init__(self, streamlit_wrapper=None, save_to_pdf=False, email_receiver_addr=None,
+                 subject_name=None, pdf_saver=None, download_class=None, email_sender=None):
 
         self.st = streamlit if streamlit_wrapper is None else streamlit_wrapper
         self.use_st_wrapper = streamlit_wrapper is not None
 
         self.save_to_pdf = save_to_pdf
-        self.email_receiver = email_receiver
-        self.subject_name = "" if subject_name is None else subject_name
+        self.email_receiver = email_receiver_addr
+        self.subject_name = subject_name if subject_name is not None else ""
 
-        self.pdf_saver_class = Markdown2Pdf if pdf_saver_class is None else pdf_saver_class
-        self.download_class = DownloadDisplayer if download_class is None else download_class
+        self.pdf_saver = pdf_saver if pdf_saver is not None else DummyPdfSaver()
+        self.download_class = download_class if download_class is not None else DownloadDisplayer
+        self.email_sender = email_sender if email_sender is not None else DummyEmailSender()
 
     def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path, muscle_seg=None,
                                              lesion_detection=None, lesion_attention=None, lesion_detection_seg=None,
                                              lesion_mask_seg=None, fat_report=None, fat_interval=None):
 
-        lungmask_displayer = LungmaskSegmentationDisplayer(input_nifti_path, lung_seg_path, streamlit_wrapper=self.st)
+        lungmask_displayer \
+            = LungmaskSegmentationDisplayer(input_nifti_path, lung_seg_path, streamlit_wrapper=self.st,
+                                            download_displayer=self.download_class(streamlit_wrapper=self.st))
+
         original_array, lung_seg = lungmask_displayer.get_arrays()
 
         # fat_report may be None, in which case fat_report_displayer doesn't display anything
         fat_report_displayer = FatReportDisplayer(original_array, lung_seg, fat_report,
-                                                  fat_interval=fat_interval, streamlit_wrapper=self.st)
+                                                  fat_interval=fat_interval, streamlit_wrapper=self.st,
+                                                  download_displayer=self.download_class(streamlit_wrapper=self.st))
 
         lungmask_displayer.download_button()
         fat_report_displayer.download_button()
@@ -108,18 +118,14 @@ class MainDisplayer:
             print(f"No email receiver - not sending email")
             return
 
-        email_sender = EmailSender()
-        email_sender.send_email(self.email_receiver, self.subject_name, pdf_path)
+        self.email_sender.send_email(self.email_receiver, self.subject_name, pdf_path)
 
     def __save_to_pdf(self):
         assert self.use_st_wrapper
 
         report_dir = self.st.generate_markdown_report()
 
-        pdf_generator = self.pdf_saver_class(report_dir)
-
-        pdf_path = pdf_generator.generate_pdf()
-        print(f"generated report pdf path {pdf_path}")
+        pdf_path = self.pdf_saver.generate_pdf(report_dir)
 
         return pdf_path
 

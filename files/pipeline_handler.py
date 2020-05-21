@@ -8,7 +8,9 @@ from threading import Thread
 import json
 from common_display.display.main_displayer import MainDisplayer
 from report_generator.pandoc_streamlit_wrapper import PandocStreamlitWrapper
+from report_generator.pdf_saver import Markdown2Pdf
 from common_display.display.download_button import DownloadDisplayerReport
+from email_sender.email_sender import EmailSender
 
 def ct_fat_report(source_file, filepath_only=False):
     print("ct fat report called with", source_file)
@@ -205,13 +207,15 @@ class PipelineHandler:
         print("generate pdf report workers not ready", workers_not_ready)
         print("generate pdf report workers failed", workers_failed)
 
+
         if email_receiver == "":
             displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True, download_class=DownloadDisplayerReport)
+                                      save_to_pdf=True, download_class=DownloadDisplayerReport,
+                                      pdf_saver=Markdown2Pdf())
         else:
             displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True, email_receiver=email_receiver,
-                                      download_class=DownloadDisplayerReport)
+                                      save_to_pdf=True, email_receiver_addr=email_receiver, email_sender=EmailSender(),
+                                      download_class=DownloadDisplayerReport, pdf_saver=Markdown2Pdf())
 
         displayer.display_volume_and_slice_information(input_nifti_path=input_path, lung_seg_path=lungmask_path,
                                                        muscle_seg=muscle_seg_path,

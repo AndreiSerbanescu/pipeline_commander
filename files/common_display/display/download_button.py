@@ -30,6 +30,6 @@ class DownloadDisplayerReport:
 
     def display(self, resource_name, display_name="Resource"):
         file_server_url = f"http://{self.fs_address}:{self.fs_port}/{resource_name}"
-        download_hyperlink = f"[Download {display_name}]({file_server_url})"
+        download_hyperlink = f"[Click here to download {display_name}]({file_server_url})"
         self.st.markdown(download_hyperlink)
 
