@@ -28,6 +28,7 @@ RUN pip3 install pdflatex
 RUN apt-get install -y pandoc
 
 RUN pip3 install requests
+RUN pip3 install pillow
 
 RUN mkdir /app/src
 COPY files/ /app/src/
