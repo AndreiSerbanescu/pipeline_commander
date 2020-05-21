@@ -1,8 +1,6 @@
-import streamlit as st
 from common.utils import *
 import os
 from matplotlib import pyplot as plt
-import io
 
 class PandocStreamlitWrapper:
 
@@ -20,6 +18,9 @@ class PandocStreamlitWrapper:
 
         with open(report_filename, "w") as md_report:
             data = "  \n\n".join(self.md_lines)
+
+            # removes non-standard characters
+            data = data.encode('ascii', 'ignore').decode('ascii')
             md_report.write(data)
 
         return self.report_dir
@@ -44,15 +45,15 @@ class PandocStreamlitWrapper:
 
     def markdown(self, *args, **kwargs):
         self.md_lines.extend(args)
-        st.markdown(*args, **kwargs)
+        # st.markdown(*args, **kwargs)
 
     def write(self, *args, **kwargs):
         self.md_lines.extend(args)
-        st.write(*args, **kwargs)
+        # st.write(*args, **kwargs)
 
     def text(self, *args, **kwargs):
         self.md_lines.extend(args)
-        st.text(*args, **kwargs)
+        # st.text(*args, **kwargs)
 
 
     def pyplot(self, fig=None, clear_figure=True, **kwargs):
@@ -81,7 +82,7 @@ class PandocStreamlitWrapper:
 
         self.md_lines.append(f"![]({image_filename})")
 
-        st.pyplot(fig=fig, clear_figure=clear_figure, **kwargs)
+        # st.pyplot(fig=fig, clear_figure=clear_figure, **kwargs)
 
     def image(self, *args, **kwargs):
 
@@ -93,7 +94,7 @@ class PandocStreamlitWrapper:
             table = self.__generate_mono_table(args[0])
             self.md_lines.append(table)
 
-        st.image(*args, **kwargs)
+        # st.image(*args, **kwargs)
 
     def __generate_mono_table(self, image):
         image_name = f"image_{self.image_index}.png"
@@ -154,9 +155,13 @@ class PandocStreamlitWrapper:
 
         return table
 
-    def __getattr__(self, name):
-        def wrapper(*args, **kwargs):
-            st_method = getattr(st, name)
-            st_method(*args, **kwargs)
+    def header(self, text):
 
-        return wrapper
+        self.md_lines.append(f"## {text}")
+
+    # def __getattr__(self, name):
+        # def wrapper(*args, **kwargs):
+        #     st_method = getattr(st, name)
+        #     st_method(*args, **kwargs)
+        #
+        # return wrapper

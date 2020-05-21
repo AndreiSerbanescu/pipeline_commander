@@ -6,7 +6,8 @@ import segmenter
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 import json
-from common_display.main_displayer import MainDisplayer
+from common_display.display.main_displayer import MainDisplayer
+from report_generator.pandoc_streamlit_wrapper import PandocStreamlitWrapper
 
 def ct_fat_report(source_file, filepath_only=False):
     print("ct fat report called with", source_file)
@@ -80,10 +81,14 @@ class PipelineHandler:
         workers_selected = data["workers_selected"]
         source_filepath = data["source_filepath"]
 
+        fat_interval = data["fat_interval"] if "fat_interval" in data else None
+        email_receiver = data["email_receiver"] if "email_receiver" in data else ""
+        subject_name = data["subject_name"]
+
         value_map, workers_not_ready, workers_failed = self.__call_workers(workers_selected, source_filepath)
         paths = self.__move_files_to_fileserver_dir_and_get_paths(value_map)
 
-        self.__generate_pdf_report(paths, workers_not_ready, workers_failed)
+        self.__generate_pdf_report(paths, workers_not_ready, workers_failed, email_receiver, subject_name, fat_interval)
 
 
     def __extract_data_from_and_delete_config(self, config_filepath):
@@ -94,14 +99,12 @@ class PipelineHandler:
         # os.remove(config_filepath) TODO remove
         os.rename(config_filepath, f"{config_filepath}.old")
 
-        print("type of json", type(contents))
 
         contents = json.loads(contents)
 
-        print("type of contents", type(contents))
 
         assert "source_filepath" in contents
-        assert "project_name" in contents
+        assert "subject_name" in contents
         assert "workers_selected" in contents
 
         return contents
@@ -152,8 +155,9 @@ class PipelineHandler:
         return value_map, workers_not_ready, workers_failed
 
 
-    def __generate_pdf_report(self, paths, workers_not_ready, workers_failed):
-        # all of these paths may be None
+    def __generate_pdf_report(self, paths, workers_not_ready, workers_failed, email_receiver,
+                              subject_name, fat_interval):
+        # all of these besides input and lungmask paths may be None
         # the displayer expects None values
 
         lungmask_path = paths.get("lungmask")
@@ -172,17 +176,20 @@ class PipelineHandler:
         # TODO generate report and send email here
         # TODO make result config file for streamlit
 
-        # displayer = MainDisplayer(streamlit_wrapper=)
-        #
-        # class MainDisplayer:
-        #
-        #     def __init__(self, streamlit_wrapper=None, save_to_pdf=True, email_receiver=None,
-        #                  subject_name=None, pdf_saver_class=None):
-        #
-        #     def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path, muscle_seg=None,
-        #                                              lesion_detection=None, lesion_attention=None,
-        #                                              lesion_detection_seg=None,
-        #                                              lesion_mask_seg=None, fat_report=None, fat_interval=None):
+        if email_receiver == "":
+            displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
+                                      save_to_pdf=True)
+        else:
+            displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
+                                      save_to_pdf=True, email_receiver=email_receiver)
+
+        displayer.display_volume_and_slice_information(input_nifti_path=input_path, lung_seg_path=lungmask_path,
+                                                       muscle_seg=muscle_seg_path,
+                                                       lesion_detection=lesion_detection_path,
+                                                       lesion_attention=lesion_attention_path,
+                                                       lesion_detection_seg=lesion_seg_detection_path,
+                                                       lesion_mask_seg=lesion_seg_mask_path,
+                                                       fat_report=fat_report_path, fat_interval=fat_interval)
 
     def __move_files_to_fileserver_dir_and_get_paths(self, value_map):
 

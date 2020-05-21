@@ -1,4 +1,8 @@
-import streamlit
+try:
+    import streamlit
+except ImportError:
+    pass
+
 import os
 
 class DownloadDisplayer():
