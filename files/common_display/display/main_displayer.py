@@ -19,7 +19,7 @@ from email_sender.email_sender import EmailSender
 class MainDisplayer:
 
     def __init__(self, streamlit_wrapper=None, save_to_pdf=True, email_receiver=None,
-                 subject_name=None, pdf_saver_class=None):
+                 subject_name=None, pdf_saver_class=None, download_class=None):
 
         self.st = streamlit if streamlit_wrapper is None else streamlit_wrapper
         self.use_st_wrapper = streamlit_wrapper is not None
@@ -29,6 +29,7 @@ class MainDisplayer:
         self.subject_name = "" if subject_name is None else subject_name
 
         self.pdf_saver_class = Markdown2Pdf if pdf_saver_class is None else pdf_saver_class
+        self.download_class = DownloadDisplayer if download_class is None else download_class
 
     def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path, muscle_seg=None,
                                              lesion_detection=None, lesion_attention=None, lesion_detection_seg=None,
@@ -58,28 +59,28 @@ class MainDisplayer:
             detection_array = read_nifti_image(lesion_detection)
             detection_array = sitk.GetArrayFromImage(detection_array)
 
-            detection_download_displayer = DownloadDisplayer(streamlit_wrapper=self.st)
+            detection_download_displayer = self.download_class(streamlit_wrapper=self.st)
             detection_download_displayer.display(os.path.split(lesion_detection)[1], "Lesion Detection Volume")
 
         if lesion_attention is not None:
             attention_array = read_nifti_image(lesion_attention)
             attention_array = sitk.GetArrayFromImage(attention_array)
 
-            attention_download_displayer = DownloadDisplayer(streamlit_wrapper=self.st)
+            attention_download_displayer = self.download_class(streamlit_wrapper=self.st)
             attention_download_displayer.display(os.path.split(lesion_attention)[1], "Attention Volume")
 
         if muscle_seg is not None:
             muscle_seg_array = read_nifti_image(muscle_seg)
             muscle_seg_array = sitk.GetArrayFromImage(muscle_seg_array)
 
-            muscle_download_displayer = DownloadDisplayer(streamlit_wrapper=self.st)
+            muscle_download_displayer = self.download_class(streamlit_wrapper=self.st)
             muscle_download_displayer.display(os.path.split(muscle_seg)[1], "Muscle Segmentation")
 
         if lesion_detection_seg is not None:
             detection_seg_array = read_nifti_image(lesion_detection_seg)
             detection_seg_array = sitk.GetArrayFromImage(detection_seg_array)
 
-            detection_seg_download_displayer = DownloadDisplayer(streamlit_wrapper=self.st)
+            detection_seg_download_displayer = self.download_class(streamlit_wrapper=self.st)
             detection_seg_download_displayer.display(os.path.split(lesion_detection_seg)[1],
                                                      "Lesion Detection Segmentation")
 
@@ -87,7 +88,7 @@ class MainDisplayer:
             mask_seg_array = read_nifti_image(lesion_mask_seg)
             mask_seg_array = sitk.GetArrayFromImage(mask_seg_array)
 
-            mask_seg_download_displayer = DownloadDisplayer(streamlit_wrapper=self.st)
+            mask_seg_download_displayer = self.download_class(streamlit_wrapper=self.st)
             mask_seg_download_displayer.display(os.path.split(lesion_mask_seg)[1], "Lesion Detection Mask")
 
         lungmask_displayer.display()

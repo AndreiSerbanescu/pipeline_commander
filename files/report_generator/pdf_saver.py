@@ -12,7 +12,7 @@ class Markdown2Pdf:
         self.remove_files = remove_files
 
     def generate_pdf(self):
-        pandoc_cmd = f"cd {self.report_dir} && pandoc -s -o {self.report_name} report.md"
+        pandoc_cmd = f"cd {self.report_dir} && pandoc -s -o {self.report_name} report.md --variable urlcolor=cyan"
 
         sb.check_output([pandoc_cmd], shell=True)
         pdf_filename = os.path.join(self.report_dir, self.report_name)

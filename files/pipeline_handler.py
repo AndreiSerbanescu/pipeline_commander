@@ -8,6 +8,7 @@ from threading import Thread
 import json
 from common_display.display.main_displayer import MainDisplayer
 from report_generator.pandoc_streamlit_wrapper import PandocStreamlitWrapper
+from common_display.display.download_button import DownloadDisplayerReport
 
 def ct_fat_report(source_file, filepath_only=False):
     print("ct fat report called with", source_file)
@@ -59,24 +60,30 @@ def lungmask_segment(source_dir, filepath_only=False):
 
 class MultithreadedPipelineHandler:
 
-    def start_pipeline(self, config_filepath):
+    def __init__(self, result_config_dir):
 
-        sn_thrd_pipeline_handler = PipelineHandler()
+        self.result_config_dir = result_config_dir
 
-        pipeline_thread = Thread(target=lambda: sn_thrd_pipeline_handler.start_pipeline(config_filepath))
+    def start_pipeline(self, config_filepath, config_id):
+
+        sn_thrd_pipeline_handler = PipelineHandler(self.result_config_dir)
+
+        pipeline_thread = Thread(target=lambda: sn_thrd_pipeline_handler.start_pipeline(config_filepath, config_id))
         pipeline_thread.start()
 
 class PipelineHandler:
 
-    def __init__(self):
+    def __init__(self, result_config_dir):
         self.LUNGMASK_SEGMENT = "Lungmask Segmentation"
         self.CT_FAT_REPORT = "CT Fat Report"
         self.CT_MUSCLE_SEGMENTATION = "CT Muscle Segmentation"
         self.LESION_DETECTION = "Lesion Detection"
         self.LESION_DETECTION_SEG = "Lesion Detection Segmentation"
 
+        self.result_config_dir = result_config_dir
 
-    def start_pipeline(self, config_filepath):
+    def start_pipeline(self, config_filepath, config_id):
+
         data = self.__extract_data_from_and_delete_config(config_filepath)
         workers_selected = data["workers_selected"]
         source_filepath = data["source_filepath"]
@@ -89,6 +96,31 @@ class PipelineHandler:
         paths = self.__move_files_to_fileserver_dir_and_get_paths(value_map)
 
         self.__generate_pdf_report(paths, workers_not_ready, workers_failed, email_receiver, subject_name, fat_interval)
+
+        self.__write_result_config_for_streamlit(paths, workers_not_ready, workers_failed, subject_name,
+                                                 fat_interval, config_id)
+
+    def __write_result_config_for_streamlit(self, paths, workers_not_ready, workers_failed, subject_name,
+                                            fat_interval, config_id):
+
+        contents = {
+            "paths": paths,
+            "workers_not_ready": workers_not_ready,
+            "workers_failed": workers_failed,
+            "subject_name": subject_name
+        }
+
+        if fat_interval is not None:
+            contents["fat_interval"] = fat_interval
+
+        json_data = json.dumps(contents)
+
+        result_config_name = f"result-{config_id}.json"
+        result_config_path = os.path.join(self.result_config_dir, result_config_name)
+
+        print("writing result config file")
+        with open(result_config_path, 'w') as outfile:
+            json.dump(json_data, outfile)
 
 
     def __extract_data_from_and_delete_config(self, config_filepath):
@@ -173,15 +205,13 @@ class PipelineHandler:
         print("generate pdf report workers not ready", workers_not_ready)
         print("generate pdf report workers failed", workers_failed)
 
-        # TODO generate report and send email here
-        # TODO make result config file for streamlit
-
         if email_receiver == "":
             displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True)
+                                      save_to_pdf=True, download_class=DownloadDisplayerReport)
         else:
             displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True, email_receiver=email_receiver)
+                                      save_to_pdf=True, email_receiver=email_receiver,
+                                      download_class=DownloadDisplayerReport)
 
         displayer.display_volume_and_slice_information(input_nifti_path=input_path, lung_seg_path=lungmask_path,
                                                        muscle_seg=muscle_seg_path,
@@ -190,6 +220,9 @@ class PipelineHandler:
                                                        lesion_detection_seg=lesion_seg_detection_path,
                                                        lesion_mask_seg=lesion_seg_mask_path,
                                                        fat_report=fat_report_path, fat_interval=fat_interval)
+
+        # TODO add information about failed worker in report or email
+
 
     def __move_files_to_fileserver_dir_and_get_paths(self, value_map):
 
