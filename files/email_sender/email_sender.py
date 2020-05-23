@@ -13,7 +13,7 @@ class EmailSender:
         self.username = username if username is not None else os.environ["EMAIL_USERNAME"]
         self.password = password if password is not None else os.environ["EMAIL_PASSWORD"]
 
-    def send_email(self, receiver_email, subject_name, attachment_fullpath):
+    def send_email(self, receiver_email, subject_name, attachment_fullpath, body=None):
 
         subject_name = str.replace(subject_name, ' ', '-')
 
@@ -22,7 +22,7 @@ class EmailSender:
         message["To"]      = receiver_email
         message["Subject"] = f"Report - {subject_name}"
 
-        body = "This is an automatically sent email"
+        body = "This is an automatically sent email" if body is None else body
         message.attach(MIMEText(body, "plain"))
 
 

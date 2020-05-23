@@ -11,6 +11,8 @@ class PandocStreamlitWrapper:
         self.image_index = 0
         self.plot_index = 0
 
+        self.hyperlink_map = {}
+
     def generate_markdown_report(self):
         report_filename = os.path.join(self.report_dir, "report.md")
 
@@ -43,17 +45,25 @@ class PandocStreamlitWrapper:
     def wrapper_get_lines(self):
         return self.md_lines
 
-    def markdown(self, *args, **kwargs):
-        self.md_lines.extend(args)
-        # st.markdown(*args, **kwargs)
+    def markdown(self, body, unsafe_allow_html=False):
+        self.md_lines.append(body)
+
+    # this method is not part of the streamlit interface
+    def markdown_hyperlink(self, body, resource_display_name, resource_link):
+        self.md_lines.append(body)
+
+        assert resource_display_name not in self.hyperlink_map
+        self.hyperlink_map[resource_display_name] = resource_link
+
+    # this method is not part of the streamlit interface
+    def get_hyperlink_map(self):
+        return self.hyperlink_map
 
     def write(self, *args, **kwargs):
         self.md_lines.extend(args)
-        # st.write(*args, **kwargs)
 
     def text(self, *args, **kwargs):
         self.md_lines.extend(args)
-        # st.text(*args, **kwargs)
 
 
     def pyplot(self, fig=None, clear_figure=True, **kwargs):
@@ -63,13 +73,8 @@ class PandocStreamlitWrapper:
         if fig is None:
             fig = plt
 
-        # Normally, dpi is set to 'figure', and the figure's dpi is set to 100.
-        # So here we pick double of that to make things look good in a high
-        # DPI display.
         options = {"dpi": 200, "format": "png"}
 
-        # If some of the options are passed in from kwargs then replace
-        # the values in options with the ones from kwargs
         options = {a: kwargs.get(a, b) for a, b in options.items()}
         # Merge options back into kwargs.
         kwargs.update(options)
@@ -82,8 +87,6 @@ class PandocStreamlitWrapper:
 
         self.md_lines.append(f"![]({image_filename})")
 
-        # st.pyplot(fig=fig, clear_figure=clear_figure, **kwargs)
-
     def image(self, *args, **kwargs):
 
         if isinstance(args[0], list):
@@ -93,8 +96,6 @@ class PandocStreamlitWrapper:
         else:
             table = self.__generate_mono_table(args[0])
             self.md_lines.append(table)
-
-        # st.image(*args, **kwargs)
 
     def __generate_mono_table(self, image):
         image_name = f"image_{self.image_index}.png"
@@ -106,8 +107,6 @@ class PandocStreamlitWrapper:
         return self.__draw_mono_table(image_name)
 
     def __draw_mono_table(self, image_filename):
-        # f"![]({image_filename}){{ width=250px }}"
-
         return f"![]({image_filename}){{ width=250px }}  |\n"
 
 
@@ -158,10 +157,3 @@ class PandocStreamlitWrapper:
     def header(self, text):
 
         self.md_lines.append(f"## {text}")
-
-    # def __getattr__(self, name):
-        # def wrapper(*args, **kwargs):
-        #     st_method = getattr(st, name)
-        #     st_method(*args, **kwargs)
-        #
-        # return wrapper

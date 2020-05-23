@@ -17,25 +17,17 @@ class DummyPdfSaver:
     def generate_pdf(self, *args, **kwargs):
         print("WARNING: dummy pdf saver called")
 
-class DummyEmailSender:
-    def send_email(self, email_receiver, subject_name, pdf_path):
-        print(f"WARNING: dummy email sender called for {email_receiver} {subject_name}")
-
 class MainDisplayer:
 
-    def __init__(self, streamlit_wrapper=None, save_to_pdf=False, email_receiver_addr=None,
-                 subject_name=None, pdf_saver=None, download_class=None, email_sender=None):
+    def __init__(self, streamlit_wrapper=None, save_to_pdf=False, pdf_saver=None, download_class=None):
 
         self.st = streamlit if streamlit_wrapper is None else streamlit_wrapper
         self.use_st_wrapper = streamlit_wrapper is not None
 
         self.save_to_pdf = save_to_pdf
-        self.email_receiver = email_receiver_addr
-        self.subject_name = subject_name if subject_name is not None else ""
 
         self.pdf_saver = pdf_saver if pdf_saver is not None else DummyPdfSaver()
         self.download_class = download_class if download_class is not None else DownloadDisplayer
-        self.email_sender = email_sender if email_sender is not None else DummyEmailSender()
 
     def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path, muscle_seg=None,
                                              lesion_detection=None, lesion_attention=None, lesion_detection_seg=None,
@@ -107,18 +99,13 @@ class MainDisplayer:
         self.__display_information_rows(original_array, lung_seg, muscle_seg_array, detection_array,
                                         attention_array, detection_seg_array, mask_seg_array, fat_report_cm3)
 
-        if self.save_to_pdf:
-            pdf_path = self.__save_to_pdf()
+    def get_hyperlink_map(self):
+        assert self.use_st_wrapper
 
-            self.__send_email(pdf_path)
+        return self.st.get_hyperlink_map()
 
-    def __send_email(self, pdf_path):
-
-        if self.email_receiver is None:
-            print(f"No email receiver - not sending email")
-            return
-
-        self.email_sender.send_email(self.email_receiver, self.subject_name, pdf_path)
+    def get_pdf_path(self):
+        return self.__save_to_pdf()
 
     def __save_to_pdf(self):
         assert self.use_st_wrapper

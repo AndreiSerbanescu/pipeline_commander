@@ -208,14 +208,9 @@ class PipelineHandler:
         print("generate pdf report workers failed", workers_failed)
 
 
-        if email_receiver == "":
-            displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True, download_class=DownloadDisplayerReport,
+        displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), save_to_pdf=True,
+                                      download_class=DownloadDisplayerReport,
                                       pdf_saver=Markdown2Pdf())
-        else:
-            displayer = MainDisplayer(streamlit_wrapper=PandocStreamlitWrapper(), subject_name=subject_name,
-                                      save_to_pdf=True, email_receiver_addr=email_receiver, email_sender=EmailSender(),
-                                      download_class=DownloadDisplayerReport, pdf_saver=Markdown2Pdf())
 
         displayer.display_volume_and_slice_information(input_nifti_path=input_path, lung_seg_path=lungmask_path,
                                                        muscle_seg=muscle_seg_path,
@@ -225,8 +220,25 @@ class PipelineHandler:
                                                        lesion_mask_seg=lesion_seg_mask_path,
                                                        fat_report=fat_report_path, fat_interval=fat_interval)
 
-        # TODO add information about failed worker in report or email
+        if email_receiver != "":
+            pdf_path = displayer.get_pdf_path()
+            hyperlink_map = displayer.get_hyperlink_map()
+            self.__send_email(email_receiver, subject_name, pdf_path, hyperlink_map)
+            # TODO add information about failed worker in report or email
 
+    def __send_email(self, email_receiver, subject_name, pdf_path, hyperlink_map):
+
+
+        body = "This is an automatically sent email. \n" \
+               "The following download links are valid for the next six hours:\n" \
+               "\n"
+
+        for resource in hyperlink_map:
+            body += f"Download {resource} - {hyperlink_map[resource]} \n"
+
+
+        email_sender = EmailSender()
+        email_sender.send_email(email_receiver, subject_name, pdf_path, body)
 
     def __move_files_to_fileserver_dir_and_get_paths(self, value_map):
 
