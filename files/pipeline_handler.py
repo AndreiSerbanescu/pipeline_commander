@@ -180,10 +180,8 @@ class PipelineHandler:
                 value = future.result()
                 value_map[key] = value
             except WorkerNotReadyException:
-                # __display_worker_not_ready(key, streamlit_wrapper=streamlit_wrapper)
                 workers_not_ready.append(key)
             except WorkerFailedException:
-                # __display_worker_failed(key, streamlit_wrapper=streamlit_wrapper)
                 workers_failed.append(key)
 
         return value_map, workers_not_ready, workers_failed
