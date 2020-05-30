@@ -222,6 +222,7 @@ class PipelineHandler:
                                       download_class=DownloadDisplayerReport,
                                       pdf_saver=Markdown2Pdf())
 
+
         displayer.display_volume_and_slice_information(input_nifti_path=input_path, lung_seg_path=lungmask_path,
                                                        muscle_seg=muscle_seg_path,
                                                        lesion_detection=lesion_detection_path,
@@ -232,23 +233,50 @@ class PipelineHandler:
 
         if email_receiver != "":
             pdf_path = displayer.get_pdf_path()
-            hyperlink_map = displayer.get_hyperlink_map()
-            self.__send_email(email_receiver, subject_name, pdf_path, hyperlink_map)
-            # TODO add information about failed worker in report or email
 
-    def __send_email(self, email_receiver, subject_name, pdf_path, hyperlink_map):
+            unique_id = utils.get_unique_id()
+            new_pdf_path = self.__move_file_to_fileserver_base_dir(pdf_path, f"report-{unique_id}.pdf")
+
+            hyperlink_map = displayer.get_hyperlink_map()
+
+            fs_addr = os.environ["FILESERVER_ADDRESS"]
+            fs_port = os.environ["FILESERVER_PORT"]
+            resource_name = os.path.split(new_pdf_path)[1]
+
+            pdf_url = f"http://{fs_addr}:{fs_port}/{resource_name}"
+
+
+            self.__send_email(email_receiver, subject_name, new_pdf_path, pdf_url, hyperlink_map,
+                              workers_not_ready + workers_failed)
+
+    def __send_email(self, email_receiver, subject_name, pdf_path, pdf_url, hyperlink_map, workers_unsuccessful):
 
 
         body = "This is an automatically sent email. \n" \
                "The following download links are valid for the next six hours:\n" \
                "\n"
 
+        body += f"Download PDF report - {pdf_url} \n"
+
         for resource in hyperlink_map:
             body += f"Download {resource} - {hyperlink_map[resource]} \n"
+        body += "\n"
 
+        if len(workers_unsuccessful) > 0:
+            body += "The following workers could not finish their computation successfully: \n"
+
+        for worker in workers_unsuccessful:
+            body += f"{worker} \n"
+        body += "\n"
 
         email_sender = EmailSender()
-        email_sender.send_email(email_receiver, subject_name, pdf_path, body)
+        try:
+            email_sender.send_email(email_receiver, subject_name, attachment_fullpath=pdf_path, body=body)
+        except:
+
+            body += "Could not include report due to Google attachment size restrictions.\n" \
+                    "Please download the report from the above link."
+            email_sender.send_email(email_receiver, subject_name, body=body)
 
     def __move_files_to_fileserver_dir_and_get_paths(self, value_map):
 

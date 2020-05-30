@@ -29,18 +29,24 @@ class MainDisplayer:
         self.pdf_saver = pdf_saver if pdf_saver is not None else DummyPdfSaver()
         self.download_class = download_class if download_class is not None else DownloadDisplayer
 
-    def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path, muscle_seg=None,
+    def display_volume_and_slice_information(self, input_nifti_path, lung_seg_path=None, muscle_seg=None,
                                              lesion_detection=None, lesion_attention=None, lesion_detection_seg=None,
                                              lesion_mask_seg=None, fat_report=None, fat_interval=None):
 
+        original_array = self.__get_array_from_image_path(input_nifti_path)
+
+
+        # lung_seg_path may be None, in which case fat_report_displayer doesn't display anything
         lungmask_displayer \
             = LungmaskSegmentationDisplayer(input_nifti_path, lung_seg_path, streamlit_wrapper=self.st,
                                             download_displayer=self.download_class(streamlit_wrapper=self.st))
 
-        original_array, lung_seg = lungmask_displayer.get_arrays()
+
+        # lung_seg is None if lung_seg_path is None
+        lung_seg = lungmask_displayer.get_seg_array()
 
         # fat_report may be None, in which case fat_report_displayer doesn't display anything
-        fat_report_displayer = FatReportDisplayer(original_array, lung_seg, fat_report,
+        fat_report_displayer = FatReportDisplayer(original_array, fat_report,
                                                   fat_interval=fat_interval, streamlit_wrapper=self.st,
                                                   download_displayer=self.download_class(streamlit_wrapper=self.st))
 
@@ -49,6 +55,9 @@ class MainDisplayer:
 
         # may be None
         fat_report_cm3 = fat_report_displayer.get_converted_report()
+
+        input_download_displayer = self.download_class(streamlit_wrapper=self.st)
+        input_download_displayer.display(os.path.split(input_nifti_path)[1], "Input Image")
 
         detection_array = None
         attention_array = None
@@ -104,6 +113,10 @@ class MainDisplayer:
 
         return self.st.get_hyperlink_map()
 
+    def __get_array_from_image_path(self, path):
+        image = read_nifti_image(path)
+        return sitk.GetArrayFromImage(image)
+
     def get_pdf_path(self):
         return self.__save_to_pdf()
 
@@ -135,10 +148,14 @@ class MainDisplayer:
             self.st.markdown(muscle_citation)
 
         original_imgs = self.get_slices_from_volume(original_array, lung_seg)
-        lung_seg_imgs = self.get_mask_slices_from_volume(lung_seg)
 
-        tuple_imgs = [original_imgs, lung_seg_imgs]
-        captions = ["Volume", "Lung Mask"]
+        tuple_imgs = [original_imgs]
+        captions = ["Volume"]
+
+        if lung_seg is not None:
+            lung_seg_imgs = self.get_mask_slices_from_volume(lung_seg)
+            tuple_imgs.append(lung_seg_imgs)
+            captions.append("Lung Mask")
 
         if muscle_seg is not None:
             muscle_seg_imgs = self.get_mask_slices_from_volume(muscle_seg)
@@ -204,9 +221,15 @@ class MainDisplayer:
         cm = plt.get_cmap('gray')
         zd = original_array.shape[0]
 
-        for i in range(zd):
+        if lung_seg is not None:
             mskmax = original_array[lung_seg > 0].max()
             mskmin = original_array[lung_seg > 0].min()
+        else:
+            mskmax = original_array.max()
+            mskmin = original_array.min()
+
+        for i in range(zd):
+
             im_arr = (original_array[i, :, :].astype(float) - mskmin) * (1.0 / (mskmax - mskmin))
             im_arr = np.uint8(cm(im_arr) * 255)
             im = Image.fromarray(im_arr).convert('RGB')

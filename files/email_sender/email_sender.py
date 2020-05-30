@@ -14,8 +14,7 @@ class EmailSender:
         self.username = username if username is not None else os.environ["EMAIL_USERNAME"]
         self.password = password if password is not None else os.environ["EMAIL_PASSWORD"]
 
-    def send_email(self, receiver_email, subject_name, attachment_fullpath, body=None,
-                   backup_pdf_url=None):
+    def send_email(self, receiver_email, subject_name, attachment_fullpath=None, body=None):
 
         subject_name = str.replace(subject_name, ' ', '-')
 
@@ -27,19 +26,20 @@ class EmailSender:
         body = "This is an automatically sent email" if body is None else body
         message.attach(MIMEText(body, "plain"))
 
+        if attachment_fullpath is not None:
+            with open(attachment_fullpath, "rb") as attachment:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(attachment.read())
 
-        with open(attachment_fullpath, "rb") as attachment:
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
 
-        encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename= report-{subject_name}.pdf"
+            )
 
-        part.add_header(
-            "Content-Disposition",
-            f"attachment; filename= report-{subject_name}.pdf"
-        )
+            message.attach(part)
 
-        message.attach(part)
         text = message.as_string()
 
         print("sending email")
@@ -49,33 +49,4 @@ class EmailSender:
 
         with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
             server.login(self.username, self.password)
-            try:
-                server.sendmail(self.username, receiver_email, text)
-            except SMTPSenderRefused:
-                self.__send_backup_mail(backup_pdf_url, port, context, receiver_email, subject_name)
-
-    def __send_backup_mail(self, backup_pdf_url, port, context, receiver_email, subject_name):
-
-        message = MIMEMultipart()
-        message["From"]    = self.username
-        message["To"]      = receiver_email
-        message["Subject"] = f"Report - {subject_name}"
-
-        body = "This is an automatically sent email.\n"
-
-        body += "Unfortunately the PDF report was too large to attach to this email.\n"
-
-        if backup_pdf_url is not None:
-            body += f"Please download the PDF report from the following URL \n\n {backup_pdf_url}  \n\n"
-            body += "The link will expire in 6 hours."
-
-
-        message.attach(MIMEText(body, "plain"))
-        text = message.as_string()
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-            server.login(self.username, self.password)
-            try:
-                server.sendmail(self.username, receiver_email, text)
-            except SMTPSenderRefused:
-                print("Could not send back-up email")
+            server.sendmail(self.username, receiver_email, text)
