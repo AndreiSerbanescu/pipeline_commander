@@ -4,6 +4,8 @@ from workers.lungmask_segment import LungmaskSegmenter
 from workers.covid_detector import CovidDetector
 from workers.covid_detector_seg import CovidDetectorSeg
 from container_requester import ContainerRequester
+from common_display.nifti_reader import read_nifti_image
+from workers.converter import Converter
 import os
 
 # ALL PATHS INPUTTED ARE RELATIVE TO $DATA_SHARE_PATH
@@ -78,7 +80,27 @@ def lungmask_segment(source_dir, model_name='R231CovidWeb', filepath_only=False)
 
     return lungmask_seg.segment(source_dir, model_name=model_name, filepath_only=filepath_only)
 
+def read_image(source_dir, filepath_only=False):
+    data_share = os.environ["DATA_SHARE_PATH"]
+    full_source = os.path.join(data_share, source_dir)
 
+    if filepath_only:
+        return full_source
+
+    image = read_nifti_image(full_source)
+    return image
+
+def convert(source_dir, filepath_only=False):
+    data_share = os.environ["DATA_SHARE_PATH"]
+
+    converter = Converter(ContainerRequester())
+    nifti_filename = converter.convert_dcm_to_nifti(source_dir)
+    nifti_filename = os.path.join(data_share, nifti_filename)
+
+    if filepath_only:
+        return nifti_filename
+
+    return read_nifti_image(nifti_filename)
 
 
 def is_nifti(filepath):

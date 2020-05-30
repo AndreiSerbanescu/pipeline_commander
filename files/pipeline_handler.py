@@ -54,6 +54,11 @@ def lesion_detect_seg(source_file, filepath_only=False):
 
     return mask_volume, detection_volume
 
+def get_input_image(source_file, filepath_only=False):
+    if segmenter.is_nifti(source_file):
+        return segmenter.read_image(source_file, filepath_only=filepath_only)
+    else:
+        return segmenter.convert(source_file, filepath_only=filepath_only)
 
 def lungmask_segment(source_dir, filepath_only=False):
     segmentation, input = segmenter.lungmask_segment(source_dir, model_name='R231CovidWeb', filepath_only=filepath_only)
@@ -81,6 +86,7 @@ class PipelineHandler:
         self.CT_MUSCLE_SEGMENTATION = "CT Muscle Segmentation"
         self.LESION_DETECTION = "Lesion Detection"
         self.LESION_DETECTION_SEG = "Lesion Detection Segmentation"
+        self.GET_INPUT_IMAGE = "Get Input"
 
         self.result_config_dir = result_config_dir
 
@@ -93,6 +99,11 @@ class PipelineHandler:
         fat_interval = data["fat_interval"] if "fat_interval" in data else None
         email_receiver = data["email_receiver"] if "email_receiver" in data else ""
         subject_name = data["subject_name"]
+
+        # besides the selected workers,
+        # add get input image worker to get the inputted image
+        # (translated into Nifti from DICOM if necessary)
+        workers_selected.append(self.GET_INPUT_IMAGE)
 
         value_map, workers_not_ready, workers_failed = self.__call_workers(workers_selected, source_filepath)
         paths = self.__move_files_to_fileserver_dir_and_get_paths(value_map)
@@ -146,14 +157,15 @@ class PipelineHandler:
     def __get_worker_information(self):
 
         worker_names = [self.LUNGMASK_SEGMENT, self.CT_FAT_REPORT, self.CT_MUSCLE_SEGMENTATION,
-                        self.LESION_DETECTION, self.LESION_DETECTION_SEG]
+                        self.LESION_DETECTION, self.LESION_DETECTION_SEG, self.GET_INPUT_IMAGE]
 
         worker_methods = {
             self.LUNGMASK_SEGMENT: lungmask_segment,
             self.CT_FAT_REPORT: ct_fat_report,
             self.CT_MUSCLE_SEGMENTATION: ct_muscle_segment,
             self.LESION_DETECTION: lesion_detect,
-            self.LESION_DETECTION_SEG: lesion_detect_seg
+            self.LESION_DETECTION_SEG: lesion_detect_seg,
+            self.GET_INPUT_IMAGE: get_input_image
         }
 
         return worker_methods, worker_names
@@ -244,13 +256,19 @@ class PipelineHandler:
 
         paths = {}
 
+        assert self.GET_INPUT_IMAGE in value_map
+        input_path = value_map[self.GET_INPUT_IMAGE]
+        input_path = self.__move_file_to_fileserver_base_dir(input_path,
+                                                             download_name=f"input-{unique_id}.nii.gz")
+        paths["input"] = input_path
+
         if self.LUNGMASK_SEGMENT in value_map:
             lungmask_path, input_path = value_map[self.LUNGMASK_SEGMENT]
             lungmask_path = self.__move_file_to_fileserver_base_dir(lungmask_path,
                                                                     download_name=f"lungmask-{unique_id}.nii.gz")
-            input_path = self.__move_file_to_fileserver_base_dir(input_path, download_name=f"input-{unique_id}.nii.gz")
+            # input_path = self.__move_file_to_fileserver_base_dir(input_path, download_name=f"input-{unique_id}.nii.gz")
 
-            paths["input"] = input_path
+            # paths["input"] = input_path
             paths["lungmask"] = lungmask_path
 
         if self.CT_FAT_REPORT in value_map:
