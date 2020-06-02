@@ -141,9 +141,7 @@ class PipelineHandler:
         with open(config_filepath, "r") as config_file:
             contents = json.load(config_file)
 
-        # os.remove(config_filepath) TODO remove
-        os.rename(config_filepath, f"{config_filepath}.old")
-
+        os.remove(config_filepath)
 
         contents = json.loads(contents)
 
