@@ -48,8 +48,6 @@ class LungmaskSegmenter:
 
         data_share = os.environ["DATA_SHARE_PATH"]
 
-        # TODO delete volume files after reading them
-
         segmentation_path = os.path.join(data_share, rel_seg_path)
         input_path        = os.path.join(data_share, rel_input_path)
 

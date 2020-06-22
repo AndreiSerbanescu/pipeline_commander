@@ -29,9 +29,7 @@ class PandocStreamlitWrapper:
 
     def __draw_introduction(self):
         intro_lines = []
-
         intro_lines.append('# CoViD-19 Risk Calculator')
-        # TODO additional introduction information
 
         return intro_lines + self.md_lines
 
