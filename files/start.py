@@ -33,7 +33,7 @@ def start_file_cleaner(clean_dir):
     six_hours = 6 * 60 * 60
     ten_minutes = 10 * 60
 
-    fs = FileCleaner(clean_dir, [".nii.gz", ".txt"], expiry_time_secs=six_hours, probe_interval=ten_minutes)
+    fs = FileCleaner(clean_dir, [".nii.gz", ".txt", ".pdf"], expiry_time_secs=six_hours, probe_interval=ten_minutes)
     fs.start_watching()
 
 # PRE: config name of form config-idhere.json
