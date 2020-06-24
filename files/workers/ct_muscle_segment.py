@@ -21,7 +21,13 @@ class CTMuscleSegmenter:
         assert os.environ.get("ENVIRONMENT", "").upper() == "DOCKERCOMPOSE"
 
         nifti_filename = self.converter.convert_dcm_to_nifti(source_directory)
-        return self.__segment_nifti(nifti_filename, filepath_only=filepath_only)
+        result = self.__segment_nifti(nifti_filename, filepath_only=filepath_only)
+
+        # delete temporary nifti conversion
+        data_share = os.environ["DATA_SHARE_PATH"]
+        os.remove(os.path.join(data_share, nifti_filename))
+
+        return result
 
 
     def __segment_nifti(self, source_file, filepath_only=False):
