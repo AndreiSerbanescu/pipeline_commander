@@ -61,8 +61,8 @@ def get_input_image(source_file, filepath_only=False):
         return segmenter.convert(source_file, filepath_only=filepath_only)
 
 def lungmask_segment(source_dir, filepath_only=False):
-    segmentation, input = segmenter.lungmask_segment(source_dir, model_name='R231CovidWeb', filepath_only=filepath_only)
-    return segmentation, input
+    segmentation = segmenter.lungmask_segment(source_dir, model_name='R231CovidWeb', filepath_only=filepath_only)
+    return segmentation
 
 
 class MultithreadedPipelineHandler:
@@ -289,7 +289,7 @@ class PipelineHandler:
         paths["input"] = input_path
 
         if self.LUNGMASK_SEGMENT in value_map:
-            lungmask_path, input_path = value_map[self.LUNGMASK_SEGMENT]
+            lungmask_path = value_map[self.LUNGMASK_SEGMENT]
             lungmask_path = self.__move_file_to_fileserver_base_dir(lungmask_path,
                                                                     download_name=f"lungmask-{unique_id}.nii.gz")
             # input_path = self.__move_file_to_fileserver_base_dir(input_path, download_name=f"input-{unique_id}.nii.gz")
